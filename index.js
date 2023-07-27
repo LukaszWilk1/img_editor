@@ -19,3 +19,7 @@ class Picture {
     return new Picture(this.width, this.height, copy);                          // Function returns new Picter created with copied array of pixels which is holding new values
   }
 }
+
+function updateState(state, action){                                            // This function is returns new object that will have new state and new actions it it
+  return Object.assign({}, state, action);                                      // {} represents new object and state and action are values that will be added to it
+}
