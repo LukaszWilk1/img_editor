@@ -29,7 +29,7 @@ function updateState(state, action){                                            
   if(props) Object.assign(dom,props);
   for(let child of children){
     if(typeof child != "string") dom.appendChild(child);                        // If child is not a string it adds element to end of children list on page 
-    else dom.appendChild(document.createTextNode(child));                            // If child is a string it creates text on page
+    else dom.appendChild(document.createTextNode(child));                       // If child is a string it creates text on page
   }
   return dom;
  }
@@ -37,8 +37,10 @@ function updateState(state, action){                                            
 const scale = 10;
 class PictureCanvas {
   constructor(picture, pointerDown) {
-    this.dom = elt("canvas",{onmousedown: event => this.mouse(event, pointerDown), ontouchstart: event => this.mouse(event, pointerDown)});
-    this.syncState(picture);
+    this.dom = elt("canvas",{onmousedown: event => this.mouse(event, pointerDown), ontouchstart: event => this.touch(event, pointerDown)});     // this.dom element holds our canvas with 2 events and functions assigned to them
+                                                                                                                                                // Argument event holds object of MouseEvent or TouchEvent which has its own instances. We pass this objects to mouse and touch methods
+    this.syncState(picture);                                                                                                                    // Every time we create PictureCanvas we sync state which is assigning new picture to old one if they are diferent and then we draw this 
+                                                                                                                                                // picture using drawPicture funcion
   }
   syncState(picture) {
     if(this.picture==picture) return;
@@ -47,9 +49,9 @@ class PictureCanvas {
   }
 }
 
-function drawPicture(picture, canvas, scale){
+function drawPicture(picture, canvas, scale){                                   // Draw picture takkes 3 arguments: picture that is passed to PictureCanvas while creating it (mostly this), canvas which is dom element from PictureCanvas, and scale which tels us that 1 px is equal to ten our units
   canvas.width = picture.width*scale;
-  canvas.height = picture.height*scale;
+  canvas.height = picture.height*scale;                                         // This 2 lines make pixels size fit our "boxes" that are 10 wide and height
   let cx = canvas.getContext("2d");
   for(let y=0; y<picture.height;y++){
     for(let x=0; x<picture.wdith;x++){
@@ -57,4 +59,47 @@ function drawPicture(picture, canvas, scale){
       cx.fillRect(x*scale,y*scale,scale,scale);
     }
   }
+}
+
+PictureCanvas.prototype.mouse = function  (downEvent, onDown){
+  if(downEvent.button != 0) return;
+  let pos = pointerPosition(downEvent, this.dom);
+  let onMove = onDown(pos);
+  if(!onMove) return;
+  let move = moveEvent => {
+    if(moveEvent.buttons == 0){
+      this.dom.removeEventListener("mousemove", move);
+    } else {
+      let newPos = pointerPosition(moveEvent, this.dom);
+      if(newPos.x==pos.x && newPos.y==pos.y) return;
+      pos = newPos;
+      onMove(newPos);
+    }
+  };
+  this.dom.addEventListener("mousemove", move);
+};
+
+function pointerPosition(pos, domNode) {
+  let rect = domNode.getBoundingClientRect();
+  return {x: Math.floor((pos.clientX-rect.left)/scale),
+          y: Math.floor((pos.clientY-rect.top)/scale)};
+}
+
+PictureCanvas.prototype.touch = function(startEvent, onDown){
+  let pos = pointerPosition(startEvent.touches[0, this.dom]);
+  let onMove = onDown(pos);
+  startEvent.preventDefault();
+  if(!onMove) return;
+  let move = moveEvent => {
+    let newPos = pointerPosition(moveEvent.touches[0], this.dom);
+    if(newPos.x==pos.x && newPos.y==pos.y) return;
+    pos=newPos;
+    onMove(newPos);
+  };
+  let end = () => {
+    this.dom.removeEventListener("touchmove", move);
+    this.dom.removeEventListener("touchend", end);
+  };
+  this.dom.addEventListener("touchmove", move);
+  this.dom.addEventListener("touchend", end);
 }
