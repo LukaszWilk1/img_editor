@@ -54,7 +54,7 @@ function drawPicture(picture, canvas, scale){                                   
   canvas.height = picture.height*scale;                                         // This 2 lines make pixels size fit our "boxes" that are 10 wide and height
   let cx = canvas.getContext("2d");
   for(let y=0; y<picture.height;y++){
-    for(let x=0; x<picture.wdith;x++){
+    for(let x=0; x<picture.width;x++){
       cx.fillStyle = picture.pixel(x,y);
       cx.fillRect(x*scale,y*scale,scale,scale);
     }
@@ -86,7 +86,7 @@ function pointerPosition(pos, domNode) {
 }
 
 PictureCanvas.prototype.touch = function(startEvent, onDown){
-  let pos = pointerPosition(startEvent.touches[0, this.dom]);
+  let pos = pointerPosition(startEvent.touches[0], this.dom);
   let onMove = onDown(pos);
   startEvent.preventDefault();
   if(!onMove) return;
@@ -102,7 +102,7 @@ PictureCanvas.prototype.touch = function(startEvent, onDown){
   };
   this.dom.addEventListener("touchmove", move);
   this.dom.addEventListener("touchend", end);
-}
+};
 
 class PixelEditor {
   constructor(state, config){
@@ -133,7 +133,7 @@ class ToolSelect {
     }, ...Object.keys(tools).map(name => elt("option", {
       selected: name == state.tool
     }, name)));
-    this.dom = elt("label", null, "Narzędzie: ", this.select);
+    this.dom = elt("label", null, "Narzedzie: ", this.select);
   }
   syncState(state) {this.select.value=state.tool;}
 }
@@ -152,7 +152,7 @@ class ColorSelect {
 function draw(pos, state, dispatch){
   function drawPixel({x ,y}, state){
     let drawn = {x, y, color: state.color};
-    dipatch({picture: state.picture.draw([drawn])});
+    dispatch({picture: state.picture.draw([drawn])});
   }
   drawPixel(pos, state);
   return drawPixel;
@@ -184,7 +184,7 @@ function fill({x, y}, state, dispatch){
   for(let done = 0; done < drawn.length; done++){
     for(let {dx, dy} of around){
       let x = drawn[done].x +dx, y = drawn[done].y+dy;
-      if(x>=0 && x < state.picture,width && y >= 0 && y < state.picture.height && state.picture.pixel(x, y) == targetColor && !drawn.some(p => p.x==x && p.y==y)) {
+      if(x>=0 && x < state.picture.width && y >= 0 && y < state.picture.height && state.picture.pixel(x, y) == targetColor && !drawn.some(p => p.x==x && p.y==y)) {
         drawn.push({x, y, color: state.color});
       }
     }
@@ -226,7 +226,7 @@ class LoadButton {
   syncState() {}
 }
 
-function startload(){
+function startLoad(dispatch){
   let input = elt("input", {
     type: "file",
     onchange: () => finishLoad(input.files[0], dispatch)
@@ -266,4 +266,57 @@ function pictureFromImage(image){
     pixels.push("#" + hex(r) + hex(g) + hex(b));
   }
   return new Picture(width, height, pixels);
+}
+
+function historyUpdateState(state, action){
+  if(action.undo == true){
+    if(state.done.lenght==0) return state;
+    return Object.assign({}, state, {
+      picture: state.done[0],
+      done: state.done.slice(1),
+      doneAt: 0
+    });
+  } else if(action.picture &&
+  state.doneAt < Date.now() - 1000) {
+    return Object.assign({}, state, action, {
+      done: [state.picture, ...state.done],
+      doneAt: Date.now()
+    });
+  } else {
+    return Object.assign({}, state, action);
+  }
+}
+
+class UndoButton {
+  constructor(state, {dispatch}) {
+    this.dom = elt("button", {
+      onclick: () => dispatch({undo: true}),
+      disabled: state.done.length == 0
+    }, "Cofnij");
+  }
+  syncState(state){
+    this.dom.disabled = state.done.length == 0;
+  }
+}
+
+const startState = {
+  tool: "draw",
+  color: "#000000",
+  picture: Picture.empty(60, 30, "#f0f0f0"),
+  done: [],
+  doneAt: 0
+};
+const baseTools = {draw, fill, rectangle, pick};
+const baseControls = [
+  ToolSelect, ColorSelect, SaveButton, LoadButton, UndoButton
+];
+function startPixelEditor({state=startState, tools=baseTools, controls=baseControls}){
+  let app = new PixelEditor(state, {
+    tools, controls,
+    dispatch(action){
+      state = historyUpdateState(state, action);
+      app.syncState(state);
+    }
+  });
+  return app.dom;
 }
