@@ -1,0 +1,25 @@
+body{
+  background: rgb(23,228,202);
+  background: linear-gradient(90deg, rgba(23,228,202,1) 0%, rgba(114,9,121,1) 56%, rgba(0,212,255,1) 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+}
+
+header{
+  color:blue;
+  text-align: center;
+  font-size: 12rem;
+  width: 100%;
+  font-family: 'Bungee Spice', cursive;
+  padding: 0.2em 0;
+}
+
+#main{
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin: 5em 0;
+}
